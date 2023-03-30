@@ -1,0 +1,219 @@
+Turbo Assembler	 Version 3.1	    03/17/23 10:40:19	    Page 1
+main.ASM
+
+
+
+      1				     ;dtseg segment 'data'
+      2				     ;	     lab_title db 'Lab 5: strings input$'
+      3				     ;	     hex_table db '0123456789ABCDEF'
+      4				     ;	     buf db 21 dup('_')
+      5				     ;	     let db 'A'
+      6				     ;	     strings_amount db 0
+      7				     ;dtseg ends
+      8
+      9				     ;stseg segment stack 'stack'
+     10				     ;	     db	256 dup(0)
+     11				     ;stseg ends
+     12				     ;,	ds:dtseg, ss:stseg
+     13	0000			     cdseg segment 'code'
+     14				     org 100h
+     15				     assume cs:cdseg
+     16	0100			     main:
+     17					     ; load data segment
+     18	0100  0E			     push cs
+     19	0101  1F			     pop ds
+     20	0102  4C 61 62 20 35 3A	20+	     lab_title db 'Lab 5: strings input$'
+     21	      73 74 72 69 6E 67	73+
+     22	      20 69 6E 70 75 74	24
+     23	0117  30 31 32 33 34 35	36+	     hex_table db '0123456789ABCDEF'
+     24	      37 38 39 41 42 43	44+
+     25	      45 46
+     26	0127  15*(5F)			     buf db 21 dup('_')
+     27	013C  41			     let db 'A'
+     28	013D  00			     strings_amount db 0
+     29
+     30
+     31
+     32					     ;main
+     33					     ;print lab	title
+     34	013E  BA 0102r			     mov dx, offset lab_title
+     35	0141  E8 007F			     call putstr
+     36	0144  E8 0086			     call clrf
+     37
+     38					     ;cycle for	string input
+     39	0147				     string_input:
+     40	0147  B9 0014				     mov cx, 20
+     41	014A  BE 0000				     mov si, 0
+     42	014D					     string_input_loop:
+     43							     ;get char
+     44	014D  E8 0078					     call getch
+     45	0150  8A D0					     mov dl, al
+     46	0152  E8 0069					     call putch
+     47
+     48							     ; check if	input ended
+     49	0155  3C 0D					     cmp al, 13
+     50	0157  74 0C					     je	print_string
+     51	0159  3C 2A					     cmp al, '*'
+     52	015B  74 5B					     je	final
+     53
+     54	015D  2E: 88 84	0127r				     mov buf[si], al
+     55	0162  46					     inc si
+     56	0163  E2 E8				     LOOP string_input_loop
+     57
+Turbo Assembler	 Version 3.1	    03/17/23 10:40:19	    Page 2
+main.ASM
+
+
+
+     58
+     59					     ;print string
+     60	0165				     print_string:
+     61	0165  83 FE 00				     cmp si, 0
+     62	0168  74 4E				     je	final
+     63	016A  8B CE				     mov cx, si
+     64	016C  BE 0000				     mov si, 0
+     65	016F					     print_string_loop:
+     66	016F  2E: 8A 94	0127r				     mov dl, buf[si]
+     67	0174  E8 0047					     call putch
+     68	0177  46					     inc si
+     69	0178  E2 F5				     LOOP print_string_loop
+     70	017A  B2 20				     mov dl, ' '
+     71	017C  E8 003F				     call putch
+     72	017F  B2 3D				     mov dl, '='
+     73	0181  E8 003A				     call putch
+     74	0184  B2 20				     mov dl, ' '
+     75	0186  E8 0035				     call putch
+     76
+     77	0189  8B CE				     mov cx, si
+     78	018B  BE 0000				     mov si, 0
+     79	018E					     print_string_hex_loop:
+     80	018E  2E: 8A 94	0127r				     mov dl, buf[si]
+     81	0193  2E: 88 16	013Cr				     mov let, dl
+     82	0198  E8 0047					     call printhex
+     83
+     84	019B  B2 20					     mov dl, ' '
+     85	019D  E8 001E					     call putch
+     86
+     87	01A0  46					     inc si
+     88
+     89	01A1  E2 EB				     loop print_string_hex_loop
+     90	01A3  E8 0027				     call clrf
+     91
+     92	01A6  B2 0A				     mov dl, 0ah
+     93	01A8  E8 0013				     call putch
+     94
+     95	01AB  2E: FE 06	013Dr			     inc strings_amount
+     96	01B0  2E: 80 3E	013Dr 0A		     cmp strings_amount, 10
+     97	01B6  75 8F				     jne string_input
+     98						     ; jmp string_input
+     99
+    100
+    101
+    102	01B8				     final:
+    103					     ;quit
+    104	01B8  B0 00			     mov al, 0
+    105	01BA  B4 4C			     mov ah, 4CH
+    106	01BC  CD 21			     int 21H
+    107	01BE			     putch proc
+    108	01BE  B4 02			     mov ah, 02
+    109	01C0  CD 21			     int 21H
+    110	01C2  C3			     ret
+    111	01C3			     putch endp
+    112
+    113	01C3			     putstr proc
+    114	01C3  B4 09			     mov ah, 09
+Turbo Assembler	 Version 3.1	    03/17/23 10:40:19	    Page 3
+main.ASM
+
+
+
+    115	01C5  CD 21			     int 21h
+    116	01C7  C3			     ret
+    117	01C8			     putstr endp
+    118
+    119	01C8			     getch proc
+    120	01C8  B4 08			     mov ah, 08h
+    121	01CA  CD 21			     int 21h
+    122	01CC  C3			     ret
+    123	01CD			     getch endp
+    124
+    125	01CD			     clrf proc
+    126	01CD  B2 0A			     mov dl, 10
+    127	01CF  E8 FFEC			     call putch
+    128	01D2  B2 0D			     mov dl, 13
+    129	01D4  E8 FFE7			     call putch
+    130	01D7  C3			     ret
+    131	01D8			     clrf endp
+    132
+    133	01D8			     clrscr proc
+    134	01D8  E8 FFF2			 call clrf
+    135	01DB  B4 00			 mov  ah , 0H
+    136	01DD  B0 03			 mov  al , 3H
+    137	01DF  CD 10			 int  10H
+    138	01E1  C3			 ret
+    139	01E2			     clrscr endp
+    140
+    141	01E2			     printhex proc
+    142					     ; first digit
+    143	01E2  2E: A0 013Cr		     mov al, let
+    144	01E6  D0 E8 D0 E8 D0 E8	D0+	     shr al, 4
+    145	      E8
+    146	01EE  BB 0117r			     lea bx, hex_table
+    147	01F1  D7			     xlat
+    148	01F2  8A D0			     mov dl, al
+    149	01F4  E8 FFC7			     call putch
+    150
+    151					     ;second digit
+    152	01F7  2E: A0 013Cr		     mov al, let
+    153	01FB  24 0F			     and al, 0fh
+    154	01FD  D7			     xlat
+    155	01FE  8A D0			     mov dl, al
+    156	0200  E8 FFBB			     call putch
+    157
+    158					     ;final letter h
+    159	0203  B2 68			     mov dl, 'h'
+    160	0205  E8 FFB6			     call putch
+    161	0208  C3			     ret
+    162	0209			     printhex endp
+    163	0209			     cdseg ends
+    164
+    165				     end main
+Turbo Assembler	 Version 3.1	    03/17/23 10:40:19	    Page 4
+Symbol Table
+
+
+
+
+Symbol Name			  Type	 Value
+
+??DATE				  Text	 "03/17/23"
+??FILENAME			  Text	 "main	  "
+??TIME				  Text	 "10:40:19"
+??VERSION			  Number 030A
+@CPU				  Text	 0101H
+@CURSEG				  Text	 CDSEG
+@FILENAME			  Text	 MAIN
+@WORDSIZE			  Text	 2
+BUF				  Byte	 CDSEG:0127
+CLRF				  Near	 CDSEG:01CD
+CLRSCR				  Near	 CDSEG:01D8
+FINAL				  Near	 CDSEG:01B8
+GETCH				  Near	 CDSEG:01C8
+HEX_TABLE			  Byte	 CDSEG:0117
+LAB_TITLE			  Byte	 CDSEG:0102
+LET				  Byte	 CDSEG:013C
+MAIN				  Near	 CDSEG:0100
+PRINTHEX			  Near	 CDSEG:01E2
+PRINT_STRING			  Near	 CDSEG:0165
+PRINT_STRING_HEX_LOOP		  Near	 CDSEG:018E
+PRINT_STRING_LOOP		  Near	 CDSEG:016F
+PUTCH				  Near	 CDSEG:01BE
+PUTSTR				  Near	 CDSEG:01C3
+STRINGS_AMOUNT			  Byte	 CDSEG:013D
+STRING_INPUT			  Near	 CDSEG:0147
+STRING_INPUT_LOOP		  Near	 CDSEG:014D
+
+Groups & Segments		  Bit Size Align  Combine Class
+
+CDSEG				  16  0209 Para	  none	  CODE
+

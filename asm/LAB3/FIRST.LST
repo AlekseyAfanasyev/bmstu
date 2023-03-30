@@ -1,0 +1,76 @@
+Turbo Assembler	 Version 3.1	    03/06/23 16:01:03	    Page 1
+first.asm
+
+
+
+      1	0000			     MYCODE SEGMENT 'CODE'
+      2					 ASSUME	CS:MYCODE
+      3					 PUBLIC	LET
+      4	0000  41		     LET DB 'A'
+      5	0001			     START:
+      6				     ; Загрузка	сегментного регистра данных DS
+      7	0001  0E			  PUSH CS
+      8	0002  1F			  POP  DS
+      9				     ; read symbol
+     10	0003  B4 01			 MOV AH, 01H
+     11	0005  CD 21			 INT 21H
+     12	0007  2E: A2 0000r		 MOV LET, AL
+     13				     ; print new line
+     14	000B  B4 02			 MOV AH, 02
+     15	000D  B2 0A			 MOV DL, 0ah
+     16	000F  CD 21			 INT 21H
+     17				     ; print first
+     18	0011  2E: 80 06	0000r 01	  ADD LET, 1
+     19	0017  B4 02			  MOV AH, 02
+     20	0019  2E: 8A 16	0000r		  MOV DL, LET
+     21	001E  CD 21			  INT 21H
+     22				     ; print new line
+     23	0020  B4 02			 MOV AH, 02
+     24	0022  B2 0A			 MOV DL, 0ah
+     25	0024  CD 21			 INT 21H
+     26				     ;print second
+     27	0026  2E: 80 06	0000r 01	 ADD LET, 1
+     28	002C  B4 02			 MOV AH, 02
+     29	002E  2E: 8A 16	0000r		 MOV DL, LET
+     30	0033  CD 21			 INT 21H
+     31				     ;print new	line
+     32	0035  B4 02			 MOV AH, 02
+     33	0037  B2 0A			 MOV DL, 0ah
+     34	0039  CD 21			 INT 21H
+     35				     ;print third
+     36	003B  2E: 80 06	0000r 01	 ADD LET, 1
+     37	0041  B4 02			 MOV AH, 02
+     38	0043  2E: 8A 16	0000r		 MOV DL,LET
+     39	0048  CD 21			 INT 21H
+     40				     ; wait input
+     41	004A  B4 01			 MOV AH, 01H
+     42	004C  CD 21			 INT 21H
+     43				     ; Выход из	программы
+     44	004E  B0 00			  MOV AL, 0
+     45	0050  B4 4C			  MOV AH, 4CH
+     46	0052  CD 21			  INT 21H
+     47	0054			     MYCODE ENDS
+     48				     END START
+Turbo Assembler	 Version 3.1	    03/06/23 16:01:03	    Page 2
+Symbol Table
+
+
+
+
+Symbol Name			  Type	 Value
+
+??DATE				  Text	 "03/06/23"
+??FILENAME			  Text	 "first	  "
+??TIME				  Text	 "16:01:03"
+??VERSION			  Number 030A
+@CPU				  Text	 0101H
+@CURSEG				  Text	 MYCODE
+@FILENAME			  Text	 FIRST
+@WORDSIZE			  Text	 2
+LET				  Byte	 MYCODE:0000
+START				  Near	 MYCODE:0001
+
+Groups & Segments		  Bit Size Align  Combine Class
+
+MYCODE				  16  0054 Para	  none	  CODE
+
