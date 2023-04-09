@@ -14,16 +14,10 @@ export class MainPage {
         return document.getElementById('main-page')
     }
 
-    getHTML(data) {
+    getHTML() {
         return (
             `
-                <div class="card" style="width: 300px;">
-                    <img class="card-img-top" src="${data.photo_400_orig}" alt="картинка">
-                    <div class="card-body">
-                        <h5 class="card-title">${data.first_name} ${data.last_name}</h5>
-                        <button class="btn btn-primary" id="click-card-${data.id}" data-id="${data.id}">Нажми на меня</button>
-                    </div>
-                </div>
+                <div id="main-page" class="d-flex flex-wrap"><div/>
             `
         )
     }
@@ -54,5 +48,7 @@ export class MainPage {
         this.parent.insertAdjacentHTML('beforeend', html)
     
         this.getData()
+
     }
+    
 }

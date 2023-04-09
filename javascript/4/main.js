@@ -1,5 +1,5 @@
 import {MainPage} from "./pages/main/index.js";
-import {urls} from "./urls.js";
+import {urls} from "./modules/urls.js";
 
 console.log(urls.getGroupMembers())
 console.log(1)
