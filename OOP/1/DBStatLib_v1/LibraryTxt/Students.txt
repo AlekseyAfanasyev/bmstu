@@ -1,0 +1,7 @@
+Students|StudentID
+StudentID|Int32|8|Name|String|16|Group|String|8
+1|Samoylov|IU5-25B
+2|Shibin|IU5-25B
+3|Ivanov|L4-27B
+4|Petrov|IU5-25B
+5|Smirnov|RK8-23B
