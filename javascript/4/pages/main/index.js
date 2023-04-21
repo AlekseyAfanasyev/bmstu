@@ -14,6 +14,7 @@ export class MainPage {
         return document.getElementById('main-page')
     }
 
+<<<<<<< HEAD
     getHTML(data) {
         return (
             `
@@ -24,6 +25,12 @@ export class MainPage {
                         <button class="btn btn-primary" id="click-card-${data.id}" data-id="${data.id}">Нажми на меня</button>
                     </div>
                 </div>
+=======
+    getHTML() {
+        return (
+            `
+                <div id="main-page" class="d-flex flex-wrap"><div/>
+>>>>>>> 78095dc1dc3b0c996e56755137eac7d63841119d
             `
         )
     }
@@ -54,5 +61,11 @@ export class MainPage {
         this.parent.insertAdjacentHTML('beforeend', html)
     
         this.getData()
+<<<<<<< HEAD
     }
+=======
+
+    }
+    
+>>>>>>> 78095dc1dc3b0c996e56755137eac7d63841119d
 }
