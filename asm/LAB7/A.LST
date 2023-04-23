@@ -1,0 +1,594 @@
+Turbo Assembler	 Version 3.1	    04/19/23 23:10:13	    Page 1
+a.ASM
+
+
+
+      1	0000			     dtseg segment 'data'
+      2	0000  4C 61 62 20 37 3A	20+	     lab_title db 'Lab 7: hex to bin, bin to hex, horners method$'
+      3	      68 65 78 20 74 6F	20+
+      4	      62 69 6E 2C 20 62	69+
+      5	      6E 20 74 6F 20 68	65+
+      6	      78 2C 20 68 6F 72	6E+
+      7	      65 72 73 20 6D 65	74+
+      8	      68 6F 64 24
+      9
+     10	002E  45 72 72 6F 72 21	0A+	     value_error db 'Error!', 0ah, 'Allowed chars: 0123456789ABCDEF', 0ah, 'Aborting$'
+     11	      41 6C 6C 6F 77 65	64+
+     12	      20 63 68 61 72 73	3A+
+     13	      20 30 31 32 33 34	35+
+     14	      36 37 38 39 41 42	43+
+     15	      44 45 46 0A 41 62	6F+
+     16	      72 74 69 6E 67 24
+     17
+     18	005E  45 6E 74 65 72 20	68+	     greet_hint	db 'Enter hex number in	HHHHHHHH format:>$'
+     19	      65 78 20 6E 75 6D	62+
+     20	      65 72 20 69 6E 20	48+
+     21	      48 48 48 48 48 48	48+
+     22	      20 66 6F 72 6D 61	74+
+     23	      3A 3E 24
+     24	0084  42 69 6E 3A 20 24		     bin_output_hint db	'Bin: $'
+     25	008A  44 65 63 3A 20 24		     dec_output_hint db	'Dec: $'
+     26	0090  48 65 78 3A 20 24		     hex_output_hint db	'Hex: $'
+     27
+     28	0096  09*(5F)			     string db 9 dup('_')
+     29	009F  21*(5F)			     bin_string	db 33 dup('_')
+     30	00C0  09*(5F)			     hex_string	db 9 dup('_')
+     31	00C9  0B*(30)			     dec_string	db 11 dup('0')
+     32	00D4  0000			     first_dw dw 0
+     33	00D6  0000			     second_dw dw 0
+     34	00D8  00000000			     num dd 0
+     35	00DC  ????????			     my_quotient dd ?
+     36	00E0  ????????			     my_remainder dd ?
+     37	00E4  00000000			     dd_buf dd 0
+     38	00E8  0000			     dw_buf dw 0
+     39	00EA  05F5E100 00989680	  +	     powers_of_10 dd 100000000,	10000000, 1000000, 100000, 10000, 1000,	100, 10, 1
+     40	      000F4240 000186A0	  +
+     41	      00002710 000003E8	  +
+     42	      00000064 0000000A	  +
+     43	      00000001
+     44	010E			     dtseg ends
+     45
+     46	0000			     sseg segment 'stack'
+     47	0000  0400*(00)			     db	400h dup(0)
+     48	0400			     sseg ends
+     49
+     50
+     51	0000			     cdseg segment 'code'
+     52					     assume cs:cdseg, ds:dtseg,	ss:sseg
+     53
+     54	0000			     start:
+     55					     ; load data segment
+     56	0000  B8 0000s			     mov ax, dtseg
+     57	0003  8E D8			     mov ds, ax
+Turbo Assembler	 Version 3.1	    04/19/23 23:10:13	    Page 2
+a.ASM
+
+
+
+     58
+     59					     ; print lab lab_title
+     60	0005  BA 0000r			     mov dx, offset lab_title
+     61	0008  E8 02D7			     call putstr
+     62	000B  E8 02DE			     call clrf
+     63	000E  E8 02DB			     call clrf
+     64
+     65					     ; print greet hint
+     66	0011  BA 005Er			     mov dx, offset greet_hint
+     67	0014  E8 02CB			     call putstr
+     68
+     69					     ; get string
+     70	0017  BE 0000			     mov si, 0
+     71	001A  B9 0008			     mov cx, 8 ; 8 - hex number	length
+     72	001D				     string_check:
+     73	001D  E8 02C7				     call getch
+     74	0020  88 84 0096r			     mov string[si], al
+     75	0024  8A 94 0096r			     mov dl, string[si]
+     76	0028  E8 0275				     call isdigitalpha
+     77	002B  75 03				     jne show_value_error
+     78	002D  EB 10 90				     jmp string_check_end
+     79	0030					     show_value_error:
+     80	0030  E8 02B9					     call clrf
+     81	0033  BA 002Er					     mov dx, offset value_error
+     82	0036  E8 02A9					     call putstr
+     83	0039  E8 02B0					     call clrf
+     84	003C  E8 025B					     call exit
+     85	003F					     string_check_end:
+     86	003F  46					     inc si
+     87	0040  E2 DB			     loop string_check
+     88	0042  E8 02A7			     call clrf
+     89
+     90					     ;write string
+     91	0045  BE 0003			     mov si, 3
+     92	0048  B9 0004			     mov cx, 4
+     93	004B				     fill_dw1:
+     94	004B  8A 94 0096r			     mov dl, string[si]
+     95	004F  E8 0263				     call isdigit
+     96	0052  74 02				     je	process_digit1
+     97	0054  75 08				     jne process_alpha1
+     98	0056					     process_digit1:
+     99	0056  80 AC 0096r 30				     sub string[si], '0'
+    100	005B  EB 0E 90					     jmp add_to_dw1
+    101	005E					     process_alpha1:
+    102	005E  80 AC 0096r 41				     sub string[si], 'A'
+    103	0063  80 84 0096r 0A				     add string[si], 10
+    104	0068  EB 01 90					     jmp add_to_dw1
+    105	006B					     add_to_dw1:
+    106							     ; di = power of 16
+    107	006B  BF 0003					     mov di, 3
+    108	006E  2B FE					     sub di, si
+    109
+    110							     ;load 16^0	to ax
+    111	0070  B8 0001					     mov ax, 1
+    112
+    113							     ; if power	of 16 is 0, skip the rest
+    114	0073  83 FF 00					     cmp di, 0
+Turbo Assembler	 Version 3.1	    04/19/23 23:10:13	    Page 3
+a.ASM
+
+
+
+    115	0076  74 10					     je	fill_dw_cycle_end1
+    116
+    117							     ; multiply	ax (di)	times
+    118	0078  8B D9					     mov bx, cx
+    119	007A  8B CF					     mov cx, di
+    120	007C						     move_16_power_to_ax1:
+    121	007C  D1 E0 D1 E0 D1 E0	D1+				     shl ax, 4
+    122	      E0
+    123	0084  E2 F6					     loop move_16_power_to_ax1
+    124	0086  8B CB					     mov cx, bx
+    125	0088					     fill_dw_cycle_end1:
+    126	0088  80 BC 0096r 00				     cmp string[si], 0
+    127	008D  74 10					     je	fill_dw_cycle_end_skip_adding1
+    128	008F  BB 0000					     mov bx, 0
+    129	0092  8A 9C 0096r				     mov bl, string[si]
+    130	0096  BA 0000					     mov dx, 0
+    131	0099  F7 E3					     mul bx
+    132	009B  01 06 00D4r				     add first_dw, ax
+    133
+    134	009F						     fill_dw_cycle_end_skip_adding1:
+    135	009F  4E						     dec si
+    136	00A0  E2 A9			     loop fill_dw1
+    137
+    138					     ; fill second_dw
+    139	00A2  BE 0003			     mov si, 3
+    140	00A5  B9 0004			     mov cx, 4
+    141	00A8				     fill_dw2:
+    142	00A8  8A 94 009Ar			     mov dl, string[si + 4]
+    143	00AC  E8 0206				     call isdigit
+    144	00AF  74 02				     je	process_digit2
+    145	00B1  75 08				     jne process_alpha2
+    146	00B3					     process_digit2:
+    147	00B3  80 AC 009Ar 30				     sub string[si + 4], '0'
+    148	00B8  EB 0E 90					     jmp add_to_dw2
+    149	00BB					     process_alpha2:
+    150	00BB  80 AC 009Ar 41				     sub string[si + 4], 'A'
+    151	00C0  80 84 009Ar 0A				     add string[si + 4], 10
+    152	00C5  EB 01 90					     jmp add_to_dw2
+    153	00C8					     add_to_dw2:
+    154							     ; di = power of 16
+    155	00C8  BF 0003					     mov di, 3
+    156	00CB  2B FE					     sub di, si
+    157
+    158							     ;load 16^0	to ax
+    159	00CD  B8 0001					     mov ax, 1
+    160
+    161							     ; if power	of 16 is 0, skip the rest
+    162	00D0  83 FF 00					     cmp di, 0
+    163	00D3  74 10					     je	fill_dw_cycle_end2
+    164
+    165							     ; multiply	ax (di)	times
+    166	00D5  8B D9					     mov bx, cx
+    167	00D7  8B CF					     mov cx, di
+    168	00D9						     move_16_power_to_ax2:
+    169	00D9  D1 E0 D1 E0 D1 E0	D1+				     shl ax, 4
+    170	      E0
+    171	00E1  E2 F6					     loop move_16_power_to_ax2
+Turbo Assembler	 Version 3.1	    04/19/23 23:10:13	    Page 4
+a.ASM
+
+
+
+    172	00E3  8B CB					     mov cx, bx
+    173	00E5					     fill_dw_cycle_end2:
+    174	00E5  80 BC 009Ar 00				     cmp string[si + 4], 0
+    175	00EA  74 10					     je	fill_dw_cycle_end_skip_adding2
+    176	00EC  BB 0000					     mov bx, 0
+    177	00EF  8A 9C 009Ar				     mov bl, string[si + 4]
+    178	00F3  BA 0000					     mov dx, 0
+    179	00F6  F7 E3					     mul bx
+    180	00F8  01 06 00D6r				     add second_dw, ax
+    181
+    182	00FC						     fill_dw_cycle_end_skip_adding2:
+    183	00FC  4E						     dec si
+    184	00FD  E2 A9			     loop fill_dw2
+    185
+    186					     ; make binary string
+    187
+    188					     ;first_dw
+    189	00FF  B9 0010			     mov cx, 16
+    190	0102  BF 000F			     mov di, 15
+    191
+    192	0105  A1 00D4r			     mov ax, first_dw
+    193	0108  A3 00E8r			     mov dw_buf, ax
+    194
+    195	010B				     make_bin1:
+    196	010B  A1 00E8r				     mov ax, dw_buf
+    197	010E  25 0001				     and ax, 1
+    198	0111  3D 0001				     cmp ax, 1
+    199	0114  74 02				     je	add_11
+    200	0116  75 08				     jne add_01
+    201	0118					     add_11:
+    202	0118  C6 85 009Fr 31				     mov bin_string[di], '1'
+    203	011D  EB 09 90					     jmp make_bin_cycle_end1
+    204	0120					     add_01:
+    205	0120  C6 85 009Fr 30				     mov bin_string[di], '0'
+    206	0125  EB 01 90					     jmp make_bin_cycle_end1
+    207	0128					     make_bin_cycle_end1:
+    208	0128  4F					     dec di
+    209	0129  D1 2E 00E8r				     shr dw_buf, 1
+    210	012D  E2 DC			     loop make_bin1
+    211
+    212					     ;second_dw
+    213	012F  B9 0010			     mov cx, 16
+    214	0132  BF 000F			     mov di, 15
+    215
+    216	0135  A1 00D6r			     mov ax, second_dw
+    217	0138  A3 00E8r			     mov dw_buf, ax
+    218
+    219	013B				     make_bin2:
+    220	013B  A1 00E8r				     mov ax, dw_buf
+    221	013E  25 0001				     and ax, 1
+    222	0141  3D 0001				     cmp ax, 1
+    223	0144  74 02				     je	add_12
+    224	0146  75 08				     jne add_02
+    225	0148					     add_12:
+    226	0148  C6 85 00AFr 31				     mov bin_string[di + 16], '1'
+    227	014D  EB 09 90					     jmp make_bin_cycle_end2
+    228	0150					     add_02:
+Turbo Assembler	 Version 3.1	    04/19/23 23:10:13	    Page 5
+a.ASM
+
+
+
+    229	0150  C6 85 00AFr 30				     mov bin_string[di + 16], '0'
+    230	0155  EB 01 90					     jmp make_bin_cycle_end2
+    231	0158					     make_bin_cycle_end2:
+    232	0158  4F					     dec di
+    233	0159  D1 2E 00E8r				     shr dw_buf, 1
+    234	015D  E2 DC			     loop make_bin2
+    235
+    236	015F  C6 06 00BFr 24		     mov bin_string[32], '$'
+    237
+    238					     ; print resulted bin string
+    239	0164  BA 0084r			     mov dx, offset bin_output_hint
+    240	0167  E8 0178			     call putstr
+    241	016A  BA 009Fr			     mov dx, offset bin_string
+    242	016D  E8 0172			     call putstr
+    243	0170  E8 0179			     call clrf
+    244
+    245					     ; fill hex	string
+    246	0173  B9 0004			     mov cx, 4
+    247	0176  BE 0003			     mov si, 3
+    248	0179  8B 1E 00D4r		     mov bx, first_dw
+    249	017D  89 1E 00E8r		     mov dw_buf, bx
+    250	0181				     make_hex1:
+    251	0181  8B 1E 00E8r			     mov bx, dw_buf
+    252	0185  83 E3 0F				     and bx, 0Fh
+    253	0188  83 FB 09				     cmp bx, 09h
+    254	018B  7E 16				     jle make_hex_process_digit1
+    255	018D  7F 03				     jg	make_hex_process_alpha1
+    256	018F  EB 1E 90				     jmp make_hex_cycle_end1
+    257	0192					     make_hex_process_alpha1:
+    258	0192  C6 84 00C0r 41				     mov hex_string[si], 'A'
+    259	0197  00 9C 00C0r				     add hex_string[si], bl
+    260	019B  80 AC 00C0r 0A				     sub hex_string[si], 0Ah
+    261	01A0  EB 0D 90					     jmp make_hex_cycle_end1
+    262	01A3					     make_hex_process_digit1:
+    263	01A3  C6 84 00C0r 30				     mov hex_string[si], '0'
+    264	01A8  00 9C 00C0r				     add hex_string[si], bl
+    265	01AC  EB 01 90					     jmp make_hex_cycle_end1
+    266	01AF					     make_hex_cycle_end1:
+    267	01AF  D1 2E 00E8r D1 2E	  +			     shr dw_buf, 4
+    268	      00E8r D1 2E 00E8r	D1+
+    269	      2E 00E8r
+    270	01BF  4E					     dec si
+    271	01C0  E2 BF			     loop make_hex1
+    272	01C2  B9 0004			     mov cx, 4
+    273	01C5  BE 0003			     mov si, 3
+    274	01C8  8B 1E 00D6r		     mov bx, second_dw
+    275	01CC  89 1E 00E8r		     mov dw_buf, bx
+    276	01D0				     make_hex2:
+    277	01D0  8B 1E 00E8r			     mov bx, dw_buf
+    278	01D4  83 E3 0F				     and bx, 0Fh
+    279	01D7  83 FB 09				     cmp bx, 09h
+    280	01DA  7E 16				     jle make_hex_process_digit2
+    281	01DC  7F 03				     jg	make_hex_process_alpha2
+    282	01DE  EB 1E 90				     jmp make_hex_cycle_end2
+    283	01E1					     make_hex_process_alpha2:
+    284	01E1  C6 84 00C4r 41				     mov hex_string[si+4], 'A'
+    285	01E6  00 9C 00C4r				     add hex_string[si+4], bl
+Turbo Assembler	 Version 3.1	    04/19/23 23:10:13	    Page 6
+a.ASM
+
+
+
+    286	01EA  80 AC 00C4r 0A				     sub hex_string[si+4], 0Ah
+    287	01EF  EB 0D 90					     jmp make_hex_cycle_end2
+    288	01F2					     make_hex_process_digit2:
+    289	01F2  C6 84 00C4r 30				     mov hex_string[si+4], '0'
+    290	01F7  00 9C 00C4r				     add hex_string[si+4], bl
+    291	01FB  EB 01 90					     jmp make_hex_cycle_end2
+    292	01FE					     make_hex_cycle_end2:
+    293	01FE  D1 2E 00E8r D1 2E	  +			     shr dw_buf, 4
+    294	      00E8r D1 2E 00E8r	D1+
+    295	      2E 00E8r
+    296	020E  4E					     dec si
+    297	020F  E2 BF			     loop make_hex2
+    298	0211  C6 06 00C8r 24		     mov hex_string[8],	'$'
+    299
+    300					     ; print hex string
+    301	0216  BA 0090r			     mov dx, offset hex_output_hint
+    302	0219  E8 00C6			     call putstr
+    303	021C  BA 00C0r			     mov dx, offset hex_string
+    304	021F  E8 00C0			     call putstr
+    305	0222  E8 00C7			     call clrf
+    306
+    307	0225  8B 1E 00D4r		     mov bx, first_dw
+    308	0229  89 1E 00D8r		     mov word ptr num, bx
+    309	022D  8B 1E 00D6r		     mov bx, second_dw
+    310	0231  89 1E 00DAr		     mov word ptr num+2, bx
+    311
+    312	0235  8B 1E 00D8r		     mov bx, word ptr num
+    313	0239  89 1E 00E4r		     mov word ptr dd_buf, bx
+    314	023D  8B 1E 00DAr		     mov bx, word ptr num+2
+    315	0241  89 1E 00E6r		     mov word ptr dd_buf+2, bx
+    316
+    317	0245  B9 000A			     mov cx, 10
+    318	0248  BE 0000			     mov si, 0
+    319	024B  BF 0000			     mov di, 0
+    320	024E				     make_dec:
+    321						     ; bl = power of 10
+    322	024E  BB 0000				     mov bx, 0
+    323	0251  E8 0025				     call div_dd
+    324	0254  A1 00E2r				     mov ax, word ptr my_remainder+2
+    325	0257  00 84 00C9r			     add dec_string[si], al
+    326	025B  8B 1E 00DCr			     mov bx, word ptr my_quotient
+    327	025F  89 1E 00E4r			     mov word ptr dd_buf, bx
+    328	0263  8B 1E 00DEr			     mov bx, word ptr my_quotient+2
+    329	0267  89 1E 00E6r			     mov word ptr dd_buf+2, bx
+    330	026B  46				     inc si
+    331	026C  83 C7 02				     add di, 2
+    332	026F  E2 DD			     loop make_dec
+    333
+    334	0271  C6 06 00D3r 24		     mov dec_string[10], '$'
+    335
+    336
+    337
+    338	0276  E8 0021			     call exit
+    339
+    340				     ; function	to divide one dd variable by another
+    341				     ; input:
+    342				     ;	 dividend_dd: the dividend double word variable
+Turbo Assembler	 Version 3.1	    04/19/23 23:10:13	    Page 7
+a.ASM
+
+
+
+    343				     ;	 divisor_dd: the divisor double	word variable
+    344				     ; output:
+    345				     ;	 quotient_dd: the quotient double word variable
+    346				     ;	 remainder_dd: the remainder double word variable
+    347	0279			     div_dd proc near
+    348					 ; load	the dividend into dx:ax
+    349	0279  A1 00E4r			 mov ax, word ptr dd_buf
+    350	027C  8B 16 00E6r		 mov dx, word ptr dd_buf+2
+    351
+    352					 ; load	the divisor into bx:cx
+    353	0280  8B 8D 00EAr		 mov cx, word ptr powers_of_10[di]
+    354	0284  8B 9D 00ECr		 mov bx, word ptr powers_of_10[di]+2
+    355
+    356					 ; divide dx:ax	by bx:cx
+    357	0288  F7 FB			 idiv bx
+    358
+    359					 ; store the quotient and remainder
+    360	028A  A3 00DCr			 mov word ptr my_quotient, ax	; store	quotient low word
+    361	028D  89 16 00DEr		 mov word ptr my_quotient+2, dx	  ; store quotient high	word
+    362	0291  89 0E 00E0r		 mov word ptr my_remainder, cx	 ; store remainder low word
+    363	0295  89 1E 00E2r		 mov word ptr my_remainder+2, bx   ; store remainder high word
+    364	0299  C3			 ret
+    365	029A			     div_dd endp
+    366
+    367	029A			     exit proc
+    368	029A  B0 00			     mov al, 0
+    369	029C  B4 4C			     mov ah, 4CH
+    370	029E  CD 21			     int 21H
+    371	02A0			     exit endp
+    372
+    373	02A0			     isdigitalpha proc
+    374	02A0  E8 0012			     call isdigit
+    375	02A3  75 02			     jne check_isaplha
+    376	02A5  74 0B			     je	digitalpha
+    377	02A7				     check_isaplha:
+    378	02A7  E8 001F				     call isalpha
+    379	02AA  75 02				     jne not_digitalpha
+    380	02AC  74 04				     je	digitalpha
+    381	02AE				     not_digitalpha:
+    382	02AE  80 FA 30				     cmp dl, '0'
+    383	02B1  C3				     ret
+    384	02B2				     digitalpha:
+    385	02B2  3A D2				     cmp dl, dl
+    386	02B4  C3				     ret
+    387	02B5			     isdigitalpha endp
+    388
+    389	02B5			     isdigit proc
+    390	02B5  80 FA 30			     cmp dl, '0'
+    391	02B8  7C 08			     jl	not_digit
+    392
+    393	02BA  80 FA 39			     cmp dl, '9'
+    394	02BD  7F 03			     jg	not_digit
+    395
+    396	02BF  EB 05 90			     jmp digit
+    397	02C2				     not_digit:
+    398	02C2  80 FA 30				     cmp dl, '0'
+    399	02C5  C3				     ret
+Turbo Assembler	 Version 3.1	    04/19/23 23:10:13	    Page 8
+a.ASM
+
+
+
+    400	02C6				     digit:
+    401	02C6  3A D2				     cmp dl, dl
+    402	02C8  C3				     ret
+    403	02C9			     isdigit endp
+    404
+    405	02C9			     isalpha proc
+    406	02C9  80 FA 41			     cmp dl, 'A'
+    407	02CC  7C 08			     jl	not_alpha
+    408
+    409	02CE  80 FA 46			     cmp dl, 'F'
+    410	02D1  7F 03			     jg	not_alpha
+    411
+    412	02D3  EB 05 90			     jmp alpha
+    413	02D6				     not_alpha:
+    414	02D6  80 FA 41				     cmp dl, 'A'
+    415	02D9  C3				     ret
+    416	02DA				     alpha:
+    417	02DA  3A D2				     cmp dl, dl
+    418	02DC  C3				     ret
+    419	02DD			     isalpha endp
+    420
+    421	02DD			     putch proc
+    422	02DD  B4 02			     mov ah, 02
+    423	02DF  CD 21			     int 21H
+    424	02E1  C3			     ret
+    425	02E2			     putch endp
+    426
+    427	02E2			     putstr proc
+    428	02E2  B4 09			     mov ah, 09
+    429	02E4  CD 21			     int 21h
+    430	02E6  C3			     ret
+    431	02E7			     putstr endp
+    432
+    433	02E7			     getch proc
+    434	02E7  B4 01			     mov ah, 01h
+    435	02E9  CD 21			     int 21h
+    436	02EB  C3			     ret
+    437	02EC			     getch endp
+    438
+    439	02EC			     clrf proc
+    440	02EC  B2 0A			     mov dl, 10
+    441	02EE  E8 FFEC			     call putch
+    442	02F1  B2 0D			     mov dl, 13
+    443	02F3  E8 FFE7			     call putch
+    444	02F6  C3			     ret
+    445	02F7			     clrf endp
+    446
+    447	02F7			     clrscr proc
+    448	02F7  E8 FFF2			 call clrf
+    449	02FA  B4 00			 mov  ah , 0H
+    450	02FC  B0 03			 mov  al , 3H
+    451	02FE  CD 10			 int  10H
+    452	0300  C3			 ret
+    453	0301			     clrscr endp
+    454	0301			     cdseg ends
+    455
+    456				     end start
+Turbo Assembler	 Version 3.1	    04/19/23 23:10:13	    Page 9
+Symbol Table
+
+
+
+
+Symbol Name			  Type	 Value
+
+??DATE				  Text	 "04/19/23"
+??FILENAME			  Text	 "a	  "
+??TIME				  Text	 "23:10:13"
+??VERSION			  Number 030A
+@CPU				  Text	 0101H
+@CURSEG				  Text	 CDSEG
+@FILENAME			  Text	 A
+@WORDSIZE			  Text	 2
+ADD_01				  Near	 CDSEG:0120
+ADD_02				  Near	 CDSEG:0150
+ADD_11				  Near	 CDSEG:0118
+ADD_12				  Near	 CDSEG:0148
+ADD_TO_DW1			  Near	 CDSEG:006B
+ADD_TO_DW2			  Near	 CDSEG:00C8
+ALPHA				  Near	 CDSEG:02DA
+BIN_OUTPUT_HINT			  Byte	 DTSEG:0084
+BIN_STRING			  Byte	 DTSEG:009F
+CHECK_ISAPLHA			  Near	 CDSEG:02A7
+CLRF				  Near	 CDSEG:02EC
+CLRSCR				  Near	 CDSEG:02F7
+DD_BUF				  Dword	 DTSEG:00E4
+DEC_OUTPUT_HINT			  Byte	 DTSEG:008A
+DEC_STRING			  Byte	 DTSEG:00C9
+DIGIT				  Near	 CDSEG:02C6
+DIGITALPHA			  Near	 CDSEG:02B2
+DIV_DD				  Near	 CDSEG:0279
+DW_BUF				  Word	 DTSEG:00E8
+EXIT				  Near	 CDSEG:029A
+FILL_DW1			  Near	 CDSEG:004B
+FILL_DW2			  Near	 CDSEG:00A8
+FILL_DW_CYCLE_END1		  Near	 CDSEG:0088
+FILL_DW_CYCLE_END2		  Near	 CDSEG:00E5
+FILL_DW_CYCLE_END_SKIP_ADDING1	  Near	 CDSEG:009F
+FILL_DW_CYCLE_END_SKIP_ADDING2	  Near	 CDSEG:00FC
+FIRST_DW			  Word	 DTSEG:00D4
+GETCH				  Near	 CDSEG:02E7
+GREET_HINT			  Byte	 DTSEG:005E
+HEX_OUTPUT_HINT			  Byte	 DTSEG:0090
+HEX_STRING			  Byte	 DTSEG:00C0
+ISALPHA				  Near	 CDSEG:02C9
+ISDIGIT				  Near	 CDSEG:02B5
+ISDIGITALPHA			  Near	 CDSEG:02A0
+LAB_TITLE			  Byte	 DTSEG:0000
+MAKE_BIN1			  Near	 CDSEG:010B
+MAKE_BIN2			  Near	 CDSEG:013B
+MAKE_BIN_CYCLE_END1		  Near	 CDSEG:0128
+MAKE_BIN_CYCLE_END2		  Near	 CDSEG:0158
+MAKE_DEC			  Near	 CDSEG:024E
+MAKE_HEX1			  Near	 CDSEG:0181
+MAKE_HEX2			  Near	 CDSEG:01D0
+MAKE_HEX_CYCLE_END1		  Near	 CDSEG:01AF
+MAKE_HEX_CYCLE_END2		  Near	 CDSEG:01FE
+MAKE_HEX_PROCESS_ALPHA1		  Near	 CDSEG:0192
+MAKE_HEX_PROCESS_ALPHA2		  Near	 CDSEG:01E1
+Turbo Assembler	 Version 3.1	    04/19/23 23:10:13	    Page 10
+Symbol Table
+
+
+
+MAKE_HEX_PROCESS_DIGIT1		  Near	 CDSEG:01A3
+MAKE_HEX_PROCESS_DIGIT2		  Near	 CDSEG:01F2
+MOVE_16_POWER_TO_AX1		  Near	 CDSEG:007C
+MOVE_16_POWER_TO_AX2		  Near	 CDSEG:00D9
+MY_QUOTIENT			  Dword	 DTSEG:00DC
+MY_REMAINDER			  Dword	 DTSEG:00E0
+NOT_ALPHA			  Near	 CDSEG:02D6
+NOT_DIGIT			  Near	 CDSEG:02C2
+NOT_DIGITALPHA			  Near	 CDSEG:02AE
+NUM				  Dword	 DTSEG:00D8
+POWERS_OF_10			  Dword	 DTSEG:00EA
+PROCESS_ALPHA1			  Near	 CDSEG:005E
+PROCESS_ALPHA2			  Near	 CDSEG:00BB
+PROCESS_DIGIT1			  Near	 CDSEG:0056
+PROCESS_DIGIT2			  Near	 CDSEG:00B3
+PUTCH				  Near	 CDSEG:02DD
+PUTSTR				  Near	 CDSEG:02E2
+SECOND_DW			  Word	 DTSEG:00D6
+SHOW_VALUE_ERROR		  Near	 CDSEG:0030
+START				  Near	 CDSEG:0000
+STRING				  Byte	 DTSEG:0096
+STRING_CHECK			  Near	 CDSEG:001D
+STRING_CHECK_END		  Near	 CDSEG:003F
+VALUE_ERROR			  Byte	 DTSEG:002E
+
+Groups & Segments		  Bit Size Align  Combine Class
+
+CDSEG				  16  0301 Para	  none	  CODE
+DTSEG				  16  010E Para	  none	  DATA
+SSEG				  16  0400 Para	  none	  STACK
+

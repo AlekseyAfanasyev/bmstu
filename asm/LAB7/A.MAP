@@ -1,9 +1,10 @@
 
  Start  Stop   Length Name               Class
 
- 00000H 00066H 00067H DTSEG              DATA
- 00070H 00126H 000B7H CDSEG              CODE
+ 00000H 00106H 00107H DTSEG              DATA
+ 00110H 0050FH 00400H SSEG               STACK
+ 00510H 00883H 00374H CDSEG              CODE
 
-Program entry point at 0007:0000
+Program entry point at 0051:0000
 Warning: No stack
 

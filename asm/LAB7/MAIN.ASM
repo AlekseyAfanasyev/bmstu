@@ -9,8 +9,6 @@ dtseg segment 'data'
 	hex_output_hint db 'Hex: $'
 
 	hex_table db '0123456789ABCDEF'
-	let db 'a'
-	buf db '_'
 	string db '____'
 	bin_string db 17 dup('_')
 	hex_string db 5 dup('_')
