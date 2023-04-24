@@ -13,12 +13,11 @@ dtseg segment 'data'
 	string db 9 dup('_')
 	bin_string db 33 dup('_')
 	hex_string db 9 dup('_')
-	dec_string db 10 dup('0')
+	dec_string db 11 dup('0')
 	first_dw dw 0
-	second_dw dw 0
 	num dd 0
+	second_dw dw 0
 	div_result db 0
-	dd_buf dd 0
 	dw_buf dw 0
 	powers_of_10 dd 1000000000, 100000000, 10000000, 1000000, 100000, 10000, 1000, 100, 10, 1
 dtseg ends
@@ -32,21 +31,126 @@ cdseg segment 'code'
 	assume cs:cdseg, ds:dtseg, ss:sseg
 
 start:
-	; load data segment
 	mov ax, dtseg
 	mov ds, ax
 
-	; print lab lab_title
 	mov dx, offset lab_title
 	call putstr
 	call clrf
 	call clrf
 
-	; print greet hint
 	mov dx, offset greet_hint
 	call putstr
 
-	; get string
+	call input_string
+	
+	call fill_first_dw
+	call fill_second_dw
+	
+	; move first_dw and second_dw to num
+	mov bx, first_dw
+	mov word ptr num+2, bx
+	mov bx, second_dw
+	mov word ptr num, bx
+	
+	mov di, 15
+	mov ax, first_dw
+	mov dw_buf, ax
+	call make_bin
+	mov di, 31
+	mov ax, second_dw
+	mov dw_buf, ax
+	call make_bin
+	mov bin_string[32], '$'
+	mov dx, offset bin_output_hint
+	call putstr
+	mov dx, offset bin_string
+	call putstr
+	call clrf
+	
+	; fill hex string
+	mov cx, 4
+	mov si, 3
+	mov bx, first_dw
+	mov dw_buf, bx
+	make_hex1:
+		mov bx, dw_buf
+		and bx, 0Fh
+		cmp bx, 09h
+		jle make_hex_process_digit1
+		jg make_hex_process_alpha1
+		jmp make_hex_cycle_end1
+		make_hex_process_alpha1:
+			mov hex_string[si], 'A'
+			add hex_string[si], bl
+			sub hex_string[si], 0Ah
+			jmp make_hex_cycle_end1
+		make_hex_process_digit1:
+			mov hex_string[si], '0'
+			add hex_string[si], bl
+			jmp make_hex_cycle_end1
+		make_hex_cycle_end1:
+			shr dw_buf, 4
+			dec si
+	loop make_hex1
+	mov cx, 4
+	mov si, 3
+	mov bx, second_dw
+	mov dw_buf, bx
+	make_hex2:
+		mov bx, dw_buf
+		and bx, 0Fh
+		cmp bx, 09h
+		jle make_hex_process_digit2
+		jg make_hex_process_alpha2
+		jmp make_hex_cycle_end2
+		make_hex_process_alpha2:
+			mov hex_string[si+4], 'A'
+			add hex_string[si+4], bl
+			sub hex_string[si+4], 0Ah
+			jmp make_hex_cycle_end2
+		make_hex_process_digit2:
+			mov hex_string[si+4], '0'
+			add hex_string[si+4], bl
+			jmp make_hex_cycle_end2
+		make_hex_cycle_end2:
+			shr dw_buf, 4
+			dec si
+	loop make_hex2
+	mov hex_string[8], '$'
+	
+	; print hex string
+	mov dx, offset hex_output_hint
+	call putstr
+	mov dx, offset hex_string
+	call putstr
+	call clrf
+	
+	
+	
+	mov cx, 9
+	mov si, 0
+	mov di, 0
+	make_dec:
+		call div_dd
+		mov al, div_result
+		add dec_string[si], al
+		inc si
+		add di, 4
+	loop make_dec
+	mov dec_string[10], '$'
+	
+	mov dx, offset dec_output_hint
+	call putstr
+	mov dx, offset dec_string
+	call putstr
+	call clrf
+	
+	
+	
+	call exit
+	
+input_string proc
 	mov si, 0
 	mov cx, 8 ; 8 - hex number length
 	string_check:
@@ -66,8 +170,10 @@ start:
 			inc si
 	loop string_check
 	call clrf
+	ret
+input_string endp
 	
-	;write string 
+fill_first_dw proc
 	mov si, 3
 	mov cx, 4
 	fill_dw1:
@@ -113,8 +219,10 @@ start:
 			fill_dw_cycle_end_skip_adding1:
 				dec si
 	loop fill_dw1
-	
-	; fill second_dw
+	ret
+fill_first_dw endp
+
+fill_second_dw proc
 	mov si, 3
 	mov cx, 4
 	fill_dw2:
@@ -160,52 +268,74 @@ start:
 			fill_dw_cycle_end_skip_adding2:
 				dec si
 	loop fill_dw2
-	
-	; move first_dw and second_dw to 
+	ret
+fill_second_dw endp
+
+make_bin proc
+	mov cx, 16
+		
+	make_bin_loop:
+		mov ax, dw_buf
+		and ax, 1
+		cmp ax, 1
+		je add_1
+		jne add_0
+		add_1:
+			mov bin_string[di], '1'
+			jmp make_bin_cycle_end
+		add_0:
+			mov bin_string[di], '0'
+			jmp make_bin_cycle_end
+		make_bin_cycle_end:
+			dec di
+			shr dw_buf, 1
+	loop make_bin_loop
+	ret
+make_bin endp
+
+make_hex proc
+	mov cx, 4
 	mov bx, first_dw
-	mov word ptr num+2, bx
-	mov bx, second_dw
-	mov word ptr num, bx
-	
-	mov cx, 9
-	mov si, 0
-	mov di, 0
-	call mov_num_to_buf
-	make_dec:
-		call div_dd
-		mov dl, '0'
-		add dl, div_result
-		call putch
-		add di, 4
-	loop make_dec
-	
-	
-	
-	call exit
-	
-;dd_buf - remainder
-;div_result - div_result
-;делим dd_buf на powers_of_10[di]
-mov_num_to_buf proc
-	mov bx, word ptr num
-	mov word ptr dd_buf, bx
-	mov bx, word ptr num+2
-	mov word ptr dd_buf+2, bx
-mov_num_to_buf endp
+	mov dw_buf, bx
+	make_hex_loop:
+		mov bx, dw_buf
+		and bx, 0Fh
+		cmp bx, 09h
+		jle make_hex_process_digit
+		jg make_hex_process_alpha
+		jmp make_hex_cycle_end
+		make_hex_process_alpha:
+			mov hex_string[si], 'A'
+			add hex_string[si], bl
+			sub hex_string[si], 0Ah
+			jmp make_hex_cycle_end
+		make_hex_process_digit:
+			mov hex_string[si], '0'
+			add hex_string[si], bl
+			jmp make_hex_cycle_end
+		make_hex_cycle_end:
+			shr dw_buf, 4
+			dec si
+	loop make_hex_loop
+	ret
+make_hex endp
 
 ; ax - first 
 ; bx - second
+; num - remainder
+; div_result - div_result
+; делим num на powers_of_10[di]
 div_dd proc
 	push ax
 	push bx
 	mov div_result, 0
 	div_loop:
-		mov ax, word ptr dd_buf + 2
+		mov ax, word ptr num + 2
 		mov bx, word ptr powers_of_10[di] + 2
 		cmp ax, bx ; ja = jg and jb = jl
 		jb div_dd_end
 		ja div_loop_sub
-		mov ax, word ptr dd_buf
+		mov ax, word ptr num
 		mov bx, word ptr powers_of_10[di]
 		cmp ax, bx
 		jb div_dd_end
@@ -222,47 +352,41 @@ div_dd proc
 	
 div_dd endp
 
-;sub powers_of_10[di] from dd_buf
+;sub powers_of_10[di] from num
+;assuming num is bigger
 sub_dd proc
 	push ax
 	push bx
 	push dx
 	push cx
-	mov ax, word ptr dd_buf + 2 ; dd_buf - ax : bx
-	mov bx, word ptr dd_buf
+	mov ax, word ptr num + 2 ; num - ax : bx
+	mov bx, word ptr num
 	mov dx, word ptr powers_of_10[di] + 2 ; powers_of_10[di] = dx:cx
-	mov cx, word ptr powers_of_10[di] 
-	sub_loop:
-		;check if we already substracted
-		cmp cx, 0
-		je roll_powers
-		dec cx
-		jmp sub_from_dd
-		roll_powers:
-			cmp dx, 0
-			je sub_loop_end
-			dec dx
-			mov cx, 0FFFFh
-			jmp sub_from_dd
-		sub_from_dd:
-			cmp bx, 0
-			je roll_dd
-			dec bx
-			jmp sub_loop
-			roll_dd:
-				cmp ax, 0
-				je sub_loop_end
-				dec ax
-				mov bx, 0FFFFh
-				jmp sub_loop
-	sub_loop_end:
-		mov word ptr dd_buf + 2, ax
-		mov word ptr dd_buf, bx
+	mov cx, word ptr powers_of_10[di]
+	; we can firstly substract cx, and that substract only from dx
+	cmp bx, cx
+	jb sub_second_part_with_roll
+	sub bx, cx
+	mov cx, 0
+	jmp sub_higher
+	sub_second_part_with_roll:
+		sub cx, bx	
+		mov bx, 0FFFFh
+		sub ax, 1
+		sub bx, cx
+		add bx, 1
+		mov cx, 0
+	; higher pair
+	sub_higher:
+		sub ax, dx
+	sub_dd_end:	
+		mov word ptr num + 2, ax
+		mov word ptr num, bx
 		pop ax
 		pop bx
 		pop dx
 		pop cx
-		ret
+	ret
 
 sub_dd endp
 
