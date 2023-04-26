@@ -1,22 +1,17 @@
+; program to convert 8-character hex string into binary and decimal
 dtseg segment 'data'
 	lab_title db 'Lab 7: hex to bin, bin to hex, horners method$'
-
 	value_error db 'Error!', 0ah, 'Allowed chars: 0123456789ABCDEF', 0ah, 'Aborting$'
-
 	greet_hint db 'Enter hex number in HHHHHHHH format:>$'
 	bin_output_hint db 'Bin: $'
 	dec_output_hint db 'Dec: $'
 	hex_output_hint db 'Hex: $'
-	greater_output_hint db 'Greater! $'
-	less_output_hint db 'Less! $'
 
-	string db 9 dup('_')
-	bin_string db 33 dup('_')
-	hex_string db 9 dup('_')
-	dec_string db 11 dup('0')
-	first_dw dw 0
-	num dd 0
-	second_dw dw 0
+	string db 9 dup('_') 
+	bin_string db 33 dup('_') 
+	hex_string db 9 dup('_') 
+	dec_string db 11 dup('0') 
+	num dd 0 
 	div_result db 0
 	dw_buf dw 0
 	powers_of_10 dd 1000000000, 100000000, 10000000, 1000000, 100000, 10000, 1000, 100, 10, 1
@@ -31,34 +26,32 @@ cdseg segment 'code'
 	assume cs:cdseg, ds:dtseg, ss:sseg
 
 start:
+	; load data segment
 	mov ax, dtseg
 	mov ds, ax
 
+	; print lab title
 	mov dx, offset lab_title
 	call putstr
 	call clrf
 	call clrf
-
+	
+	; input string
 	mov dx, offset greet_hint
 	call putstr
-
 	call input_string
 	
+	; write to memory from string
 	call fill_first_dw
 	call fill_second_dw
 	
-	; move first_dw and second_dw to num
-	mov bx, first_dw
-	mov word ptr num+2, bx
-	mov bx, second_dw
-	mov word ptr num, bx
-	
+	; make bin string
 	mov di, 15
-	mov ax, first_dw
+	mov ax, word ptr num + 2
 	mov dw_buf, ax
 	call make_bin
 	mov di, 31
-	mov ax, second_dw
+	mov ax, word ptr num
 	mov dw_buf, ax
 	call make_bin
 	mov bin_string[32], '$'
@@ -68,58 +61,16 @@ start:
 	call putstr
 	call clrf
 	
-	; fill hex string
-	mov cx, 4
+	; make hex string
 	mov si, 3
-	mov bx, first_dw
-	mov dw_buf, bx
-	make_hex1:
-		mov bx, dw_buf
-		and bx, 0Fh
-		cmp bx, 09h
-		jle make_hex_process_digit1
-		jg make_hex_process_alpha1
-		jmp make_hex_cycle_end1
-		make_hex_process_alpha1:
-			mov hex_string[si], 'A'
-			add hex_string[si], bl
-			sub hex_string[si], 0Ah
-			jmp make_hex_cycle_end1
-		make_hex_process_digit1:
-			mov hex_string[si], '0'
-			add hex_string[si], bl
-			jmp make_hex_cycle_end1
-		make_hex_cycle_end1:
-			shr dw_buf, 4
-			dec si
-	loop make_hex1
-	mov cx, 4
-	mov si, 3
-	mov bx, second_dw
-	mov dw_buf, bx
-	make_hex2:
-		mov bx, dw_buf
-		and bx, 0Fh
-		cmp bx, 09h
-		jle make_hex_process_digit2
-		jg make_hex_process_alpha2
-		jmp make_hex_cycle_end2
-		make_hex_process_alpha2:
-			mov hex_string[si+4], 'A'
-			add hex_string[si+4], bl
-			sub hex_string[si+4], 0Ah
-			jmp make_hex_cycle_end2
-		make_hex_process_digit2:
-			mov hex_string[si+4], '0'
-			add hex_string[si+4], bl
-			jmp make_hex_cycle_end2
-		make_hex_cycle_end2:
-			shr dw_buf, 4
-			dec si
-	loop make_hex2
+	mov ax, word ptr num + 2
+	mov dw_buf, ax
+	call make_hex
+	mov si, 7
+	mov ax, word ptr num
+	mov dw_buf, ax
+	call make_hex
 	mov hex_string[8], '$'
-	
-	; print hex string
 	mov dx, offset hex_output_hint
 	call putstr
 	mov dx, offset hex_string
@@ -127,7 +78,7 @@ start:
 	call clrf
 	
 	
-	
+	;make dec string
 	mov cx, 9
 	mov si, 0
 	mov di, 0
@@ -139,14 +90,11 @@ start:
 		add di, 4
 	loop make_dec
 	mov dec_string[10], '$'
-	
 	mov dx, offset dec_output_hint
 	call putstr
 	mov dx, offset dec_string
 	call putstr
 	call clrf
-	
-	
 	
 	call exit
 	
@@ -214,7 +162,7 @@ fill_first_dw proc
 			mov bl, string[si]
 			mov dx, 0
 			mul bx
-			add first_dw, ax
+			add word ptr num + 2, ax
 			
 			fill_dw_cycle_end_skip_adding1:
 				dec si
@@ -263,13 +211,44 @@ fill_second_dw proc
 			mov bl, string[si + 4]
 			mov dx, 0
 			mul bx
-			add second_dw, ax
+			add word ptr num, ax
 			
 			fill_dw_cycle_end_skip_adding2:
 				dec si
 	loop fill_dw2
 	ret
 fill_second_dw endp
+
+; [si:si+4]
+; dw_buf = processed dw
+make_hex proc
+	push cx
+	push bx
+	mov cx, 4
+	make_hex_loop:
+		mov bx, dw_buf
+		and bx, 0Fh
+		cmp bx, 09h
+		jle make_hex_process_digit
+		jg make_hex_process_alpha
+		jmp make_hex_cycle_end
+		make_hex_process_alpha:
+			mov hex_string[si], 'A'
+			add hex_string[si], bl
+			sub hex_string[si], 0Ah
+			jmp make_hex_cycle_end
+		make_hex_process_digit:
+			mov hex_string[si], '0'
+			add hex_string[si], bl
+			jmp make_hex_cycle_end
+		make_hex_cycle_end:
+			shr dw_buf, 4
+			dec si
+	loop make_hex_loop
+	pop cx
+	pop bx
+	ret
+make_hex endp
 
 make_bin proc
 	mov cx, 16
@@ -293,32 +272,6 @@ make_bin proc
 	ret
 make_bin endp
 
-make_hex proc
-	mov cx, 4
-	mov bx, first_dw
-	mov dw_buf, bx
-	make_hex_loop:
-		mov bx, dw_buf
-		and bx, 0Fh
-		cmp bx, 09h
-		jle make_hex_process_digit
-		jg make_hex_process_alpha
-		jmp make_hex_cycle_end
-		make_hex_process_alpha:
-			mov hex_string[si], 'A'
-			add hex_string[si], bl
-			sub hex_string[si], 0Ah
-			jmp make_hex_cycle_end
-		make_hex_process_digit:
-			mov hex_string[si], '0'
-			add hex_string[si], bl
-			jmp make_hex_cycle_end
-		make_hex_cycle_end:
-			shr dw_buf, 4
-			dec si
-	loop make_hex_loop
-	ret
-make_hex endp
 
 ; ax - first 
 ; bx - second

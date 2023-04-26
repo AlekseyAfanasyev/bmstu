@@ -1,3 +1,4 @@
+; program to convert 8-character hex string into binary and decimal
 dtseg segment 'data'
 	lab_title db 'Lab 7: hex to bin, bin to hex, horners method$'
 
